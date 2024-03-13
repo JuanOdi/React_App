@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from "react";
-import { Modal } from "antd";
+import React, { useCallback, useState, useEffect } from "react";
+import { Modal, Spin } from "antd";
 import { products } from "../../constants/products";
 import { Card, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
@@ -7,13 +7,13 @@ import Cart from "../../Pages/Cart";
 
 const Item2 = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [Loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [cart, setCart] = useState(() => {
     const localdata = localStorage.getItem("cart");
     return localdata ? JSON.parse(localdata) : [];
   });
 
-  // Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const showModal = (product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
@@ -24,13 +24,6 @@ const Item2 = () => {
   const handleCancel = () => {
     setIsModalOpen(false);
   };
-  const addToCart = useCallback((product) => {
-    setCart((prevCart) => {
-      const updatedCart = [...prevCart, { ...product, quantity: 1 }];
-      localStorage.setItem("cart", JSON.stringify(updatedCart));
-      return updatedCart;
-    });
-  }, []);
 
   const handleAddtoCart = (product) => {
     const existingItem = cart.find((item) => item.id === product.id);
@@ -41,7 +34,7 @@ const Item2 = () => {
     }
   };
 
-  // Cart
+  // Hooks
   const removeToCart = useCallback((productId) => {
     setCart((prevCart) => {
       const newItems = prevCart.filter((item) => item.id !== productId);
@@ -49,8 +42,13 @@ const Item2 = () => {
       return newItems;
     });
   }, []);
-
-  //Add Quantity
+  const addToCart = useCallback((product) => {
+    setCart((prevCart) => {
+      const updatedCart = [...prevCart, { ...product, quantity: 1 }];
+      localStorage.setItem("cart", JSON.stringify(updatedCart));
+      return updatedCart;
+    });
+  }, []);
   const updateQuantity = useCallback((productId, quantity) => {
     setCart((prevCart) => {
       const updatedCart = prevCart.map((item) =>
@@ -63,6 +61,12 @@ const Item2 = () => {
     });
   }, []);
 
+  const spinner = useEffect(() => {
+    setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+  }, []);
+
   return (
     <div className="flex gap-20 justify-content-center pt-6">
       <div>
@@ -73,40 +77,49 @@ const Item2 = () => {
           cart={cart}
           showModal={showModal}
           updateQuantity={updateQuantity}
-          handleAddtoCart={handleAddtoCart} // Pass handleAddtoCart here
+          handleAddtoCart={handleAddtoCart}
+          spinner={spinner}
+          Loading={Loading} // Pass handleAddtoCart here
         />
         <Link to="/about">About</Link>
       </div>
-      <div>
+      <div className="flex">
         <Modal
           title="Product Image"
-          visible={isModalOpen} // Correct prop name
+          open={isModalOpen} // Correct prop name
           onOk={handleOk}
           onCancel={handleCancel}
         >
           <div>
-            <Button
-              variant="primary"
-              onClick={() => handleRemovetoCart(selectedProduct.id)}
-              className="text-white mt-2 ml-4 bg-blue-500"
-            >
-              Buy now
-            </Button>
-            <Button
-              onClick={() => handleAddtoCart(selectedProduct)}
-              className="text-white mt-2 ml-10 bg-orange-400 hover:bg-orange-500 border-white"
-            >
-              Add to cart
-            </Button>
+            {Loading ? (
+              <Spin size="large" /> // Render the spinner when loading
+            ) : (
+              <>
+                {selectedProduct && (
+                  <>
+                    <img
+                      src={selectedProduct.img}
+                      alt={selectedProduct.name}
+                      style={{ maxWidth: "100%" }}
+                    />
+                    <Button
+                      variant="primary"
+                      onClick={() => handleRemovetoCart(selectedProduct.id)}
+                      className="text-white mt-2 ml-4 bg-blue-500"
+                    >
+                      Buy now
+                    </Button>
+                    <Button
+                      onClick={() => handleAddtoCart(selectedProduct)}
+                      className="text-white mt-2 ml-10 bg-orange-400 hover:bg-orange-500 border-white"
+                    >
+                      Add to cart
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
           </div>
-
-          {selectedProduct && (
-            <img
-              src={selectedProduct.img}
-              alt={selectedProduct.name}
-              style={{ maxWidth: "100%" }}
-            />
-          )}
         </Modal>
       </div>
 
@@ -117,45 +130,44 @@ const Item2 = () => {
 
 const ProductList = ({
   products,
-  addToCart,
-  removeToCart,
-  cart,
-  showModal,
-  updateQuantity,
-  handleAddtoCart, // Receive handleAddtoCart as prop
-}) => {
-  const handleRemovetoCart = (productId) => {
-    const existingItem = cart.find((item) => item.id === productId);
-    if (existingItem && existingItem.quantity > 1) {
-      updateQuantity(productId, -1);
-    } else {
-      removeToCart(productId);
-    }
-  };
 
+  showModal,
+
+  Loading,
+}) => {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-      {products.map((product) => (
-        <div key={product.id}>
-          <Card
-            style={{ width: "18rem" }}
-            className="transform transition-transform duration-300 hover:scale-105 cursor-pointer"
-            onClick={() => showModal(product)}
-          >
-            <Card.Img variant="top" src={product.img} />
-            <Card.Body>
-              <Card.Title className="font-bold text-xl">
-                {product.name}
-              </Card.Title>
-              <Card.Text>{product.price}</Card.Text>
-              <Card.Text>
-                Some quick example text to build on the card title and make up
-                the bulk of the card's content.
-              </Card.Text>
-            </Card.Body>
-          </Card>
-        </div>
-      ))}
+    <div className="flex justify-center items-center h-screen">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {Loading ? (
+          <div className="col-span-full flex justify-center">
+            <Spin size="large" className="text-color" />
+          </div>
+        ) : (
+          <>
+            {products.map((product) => (
+              <div key={product.id}>
+                <Card
+                  style={{ width: "18rem" }}
+                  className="transform transition-transform duration-300 hover:scale-105 cursor-pointer"
+                  onClick={() => showModal(product)}
+                >
+                  <Card.Img variant="top" src={product.img} />
+                  <Card.Body>
+                    <Card.Title className="font-bold text-xl">
+                      {product.name}
+                    </Card.Title>
+                    <Card.Text>{product.price}</Card.Text>
+                    <Card.Text>
+                      Some quick example text to build on the card title and
+                      make up the bulk of the card's content.
+                    </Card.Text>
+                  </Card.Body>
+                </Card>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 };
